@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f1117">
+<link rel="manifest" href="manifest.json">
+<title>Parts Order Tracker</title>
+<style>
+:root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #232733; --surface3: #2c3040;
+    --border: #363b4a; --border-light: #434959;
+    --text: #e8eaf0; --text-dim: #9498a8; --text-muted: #6b7084;
+    --accent: #4a9eff; --accent-dim: #2a6bc4;
+    --green: #34d399; --green-dim: rgba(52,211,153,0.12);
+    --orange: #fb923c; --orange-dim: rgba(251,146,60,0.12);
+    --red: #f87171; --red-dim: rgba(248,113,113,0.12);
+    --font: -apple-system, 'Segoe UI', system-ui, sans-serif;
+    --radius: 8px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; height: 100dvh; overflow: hidden; }
+
+/* ── APP LAYOUT ── */
+.app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+
+/* ── HEADER ── */
+.header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; padding-top: calc(10px + var(--safe-top));
+    background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.header h1 { font-size: 16px; font-weight: 700; }
+.header h1 span { color: var(--accent); }
+.header-btns { display: flex; gap: 8px; }
+.icon-btn {
+    width: 36px; height: 36px; border-radius: var(--radius); border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text-dim); display: flex; align-items: center;
+    justify-content: center; cursor: pointer; font-size: 16px;
+}
+.icon-btn:active { background: var(--surface3); }
+.icon-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ── TABS ── */
+.tabs {
+    display: flex; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.tab {
+    flex: 1; padding: 10px; text-align: center; font-size: 12px; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── SEARCH BAR ── */
+.search-bar {
+    display: flex; gap: 8px; padding: 10px 16px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.search-bar input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 9px 12px; color: var(--text); font-family: var(--font); font-size: 14px; outline: none;
+}
+.search-bar input:focus { border-color: var(--accent); }
+.search-bar input::placeholder { color: var(--text-muted); }
+.search-bar select {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 9px 10px; color: var(--text); font-family: var(--font); font-size: 13px; outline: none;
+}
+
+/* ── ORDER LIST ── */
+.list-view { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.order-card {
+    padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer;
+    display: flex; gap: 12px; align-items: center;
+}
+.order-card:active { background: var(--surface2); }
+.order-card.group-shade { background: rgba(30,33,48,0.5); }
+.order-card .thumb {
+    width: 44px; height: 44px; border-radius: 6px; border: 1px solid var(--border);
+    object-fit: cover; flex-shrink: 0;
+}
+.order-card .thumb-empty {
+    width: 44px; height: 44px; border-radius: 6px; border: 1px dashed var(--border);
+    background: var(--surface2); flex-shrink: 0; display: flex; align-items: center;
+    justify-content: center; color: var(--text-muted); font-size: 18px; opacity: 0.4;
+}
+.order-card .info { flex: 1; min-width: 0; }
+.order-card .info .top-line { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.order-card .info .po { font-weight: 700; font-size: 14px; color: var(--accent); }
+.order-card .info .mechanic { font-size: 12px; color: var(--text-dim); }
+.order-card .info .part-line { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.order-card .info .part-num { font-weight: 600; }
+.order-card .info .desc { color: var(--text-dim); margin-left: 6px; }
+.order-card .info .bottom-line { display: flex; gap: 8px; align-items: center; margin-top: 3px; font-size: 11px; color: var(--text-muted); }
+.badge {
+    display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 600;
+}
+.badge.ordered { background: var(--orange-dim); color: var(--orange); }
+.badge.received { background: var(--green-dim); color: var(--green); }
+
+.empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 20px; color: var(--text-muted); gap: 8px; font-size: 14px;
+}
+
+/* ── FORM VIEW ── */
+.form-view {
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px;
+    padding-bottom: calc(16px + var(--safe-bottom));
+}
+.form-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+.field { margin-bottom: 14px; }
+.field label {
+    display: block; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 5px;
+}
+.field input, .field textarea, .field select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 12px; color: var(--text);
+    font-family: var(--font); font-size: 14px; outline: none;
+}
+.field input:focus, .field textarea:focus { border-color: var(--accent); }
+.field textarea { resize: vertical; min-height: 60px; }
+.field-row { display: flex; gap: 10px; }
+.field-row .field { flex: 1; }
+
+.status-toggle { display: flex; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+.status-toggle label {
+    flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 600;
+    cursor: pointer; background: var(--surface2); color: var(--text-muted); transition: all 0.15s;
+}
+.status-toggle input { display: none; }
+.status-toggle input[value="Ordered"]:checked + label { background: var(--orange-dim); color: var(--orange); }
+.status-toggle input[value="Received"]:checked + label { background: var(--green-dim); color: var(--green); }
+
+.section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin: 16px 0 8px; }
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+/* Photo chips */
+.photo-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.photo-chip {
+    display: flex; align-items: center; gap: 6px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;
+}
+.photo-chip img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; cursor: pointer; }
+.photo-chip .name { font-size: 11px; color: var(--text-dim); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.photo-chip .remove { cursor: pointer; color: var(--text-muted); font-size: 16px; padding: 0 4px; }
+.photo-chip .remove:active { color: var(--red); }
+
+.btn-add-photo {
+    display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px;
+    background: var(--surface2); border: 1px dashed var(--border-light); border-radius: 6px;
+    color: var(--text-dim); font-size: 12px; font-weight: 500; cursor: pointer;
+}
+.btn-add-photo:active { border-color: var(--accent); color: var(--accent); }
+
+/* Action buttons */
+.form-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; padding-bottom: 20px; }
+.btn {
+    padding: 11px 18px; border-radius: var(--radius); border: none;
+    font-family: var(--font); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn:active { opacity: 0.8; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-addpart { background: rgba(74,158,255,0.12); color: var(--accent); }
+.btn-secondary { background: var(--surface3); color: var(--text-dim); }
+.btn-success { background: var(--green-dim); color: var(--green); }
+.btn-danger { background: var(--red-dim); color: var(--red); }
+.btn-block { width: 100%; }
+
+/* Modal */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; align-items: center; justify-content: center; }
+.modal.active { display: flex; }
+.modal img { max-width: 95vw; max-height: 90vh; border-radius: 8px; }
+
+/* Desktop adjustments */
+@media (min-width: 768px) {
+    .app { flex-direction: row; flex-wrap: wrap; }
+    .header { width: 100%; }
+    .tabs { display: none; }
+    .left-panel { width: 55%; display: flex; flex-direction: column; height: calc(100vh - 52px); border-right: 1px solid var(--border); }
+    .right-panel { width: 45%; display: flex !important; flex-direction: column; height: calc(100vh - 52px); }
+    .search-bar { flex-shrink: 0; }
+    .list-view { flex: 1; }
+    .form-view { flex: 1; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+    <div class="header">
+        <h1><span>◆</span> Parts Tracker</h1>
+        <div class="header-btns">
+            <div class="icon-btn" onclick="exportCSV()" title="Export CSV">↓</div>
+            <div class="icon-btn" onclick="document.getElementById('csvImport').click()" title="Import CSV">↑</div>
+            <input type="file" id="csvImport" accept=".csv" style="display:none">
+        </div>
+    </div>
+
+    <!-- Mobile tabs -->
+    <div class="tabs" id="mobileTabs">
+        <div class="tab active" data-tab="list" onclick="switchTab('list')">Orders</div>
+        <div class="tab" data-tab="form" onclick="switchTab('form')">+ New / Edit</div>
+    </div>
+
+    <!-- LEFT: List -->
+    <div class="left-panel" id="listPanel">
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Search parts, POs, mechanics...">
+            <select id="statusFilter">
+                <option value="All">All</option>
+                <option value="Ordered">Ordered</option>
+                <option value="Received">Received</option>
+            </select>
+        </div>
+        <div class="list-view" id="orderList"></div>
+    </div>
+
+    <!-- RIGHT: Form -->
+    <div class="right-panel" id="formPanel" style="display:none">
+        <div class="form-view">
+            <div class="form-title" id="formTitle">New Order</div>
+
+            <div class="field">
+                <label>PO #</label>
+                <input type="text" id="fPO" placeholder="e.g. 57300" inputmode="text">
+            </div>
+            <div class="field-row">
+                <div class="field">
+                    <label>Mechanic</label>
+                    <input type="text" id="fMechanic" list="mechList" placeholder="Name">
+                    <datalist id="mechList"></datalist>
+                </div>
+                <div class="field" style="flex:0.5">
+                    <label>Qty</label>
+                    <input type="number" id="fQty" value="1" min="1" inputmode="numeric">
+                </div>
+            </div>
+            <div class="field">
+                <label>Part #</label>
+                <input type="text" id="fPartNum" placeholder="e.g. CSI-E-000524">
+            </div>
+            <div class="field">
+                <label>Description</label>
+                <textarea id="fDesc" rows="2" placeholder="Part description..."></textarea>
+            </div>
+            <div class="field">
+                <label>Status</label>
+                <div class="status-toggle">
+                    <input type="radio" name="status" id="sOrdered" value="Ordered" checked>
+                    <label for="sOrdered">Ordered</label>
+                    <input type="radio" name="status" id="sReceived" value="Received">
+                    <label for="sReceived">Received</label>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="field">
+                    <label>Date Ordered</label>
+                    <input type="date" id="fDateOrdered">
+                </div>
+                <div class="field">
+                    <label>Date Received</label>
+                    <input type="date" id="fDateReceived">
+                </div>
+            </div>
+            <div class="field">
+                <label>Notes</label>
+                <textarea id="fNotes" rows="2" placeholder="Machine, location..."></textarea>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="section-label">Nameplate Photos</div>
+            <div class="photo-list" id="npPhotos"></div>
+            <div class="btn-add-photo" onclick="addPhoto('nameplate')">+ Add Photo</div>
+            <input type="file" id="npInput" multiple accept="image/*" capture="environment" style="display:none">
+
+            <div style="height:12px"></div>
+            <div class="section-label">Part Photos</div>
+            <div class="photo-list" id="ppPhotos"></div>
+            <div class="btn-add-photo" onclick="addPhoto('part')">+ Add Photo</div>
+            <input type="file" id="ppInput" multiple accept="image/*" capture="environment" style="display:none">
+
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="saveOrder()">Save New</button>
+                <button class="btn btn-addpart" onclick="addPartToPO()">Add Part to PO</button>
+                <button class="btn btn-secondary" id="btnUpdate" onclick="updateOrder()" style="display:none">Update</button>
+                <button class="btn btn-success" onclick="markReceived()">Mark Received</button>
+                <button class="btn btn-danger" id="btnDelete" onclick="deleteOrder()" style="display:none">Delete</button>
+                <button class="btn btn-secondary" onclick="clearForm()" style="margin-left:auto">Clear</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Photo Modal -->
+<div class="modal" id="photoModal" onclick="this.classList.remove('active')">
+    <img id="modalImg" onclick="event.stopPropagation()">
+</div>
+
+<script>
+// ══════════════════════════════════════
+// IndexedDB
+// ══════════════════════════════════════
+const DB_NAME = 'PartsTrackerDB';
+const DB_VERSION = 1;
+let db;
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = e => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains('orders')) {
+                d.createObjectStore('orders', { keyPath: 'order_id' });
+            }
+        };
+        req.onsuccess = e => { db = e.target.result; resolve(db); };
+        req.onerror = e => reject(e);
+    });
+}
+
+function dbGetAll() {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('orders', 'readonly');
+        const store = tx.objectStore('orders');
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = e => reject(e);
+    });
+}
+
+function dbPut(order) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('orders', 'readwrite');
+        const store = tx.objectStore('orders');
+        store.put(order);
+        tx.oncomplete = () => resolve();
+        tx.onerror = e => reject(e);
+    });
+}
+
+function dbDelete(id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('orders', 'readwrite');
+        const store = tx.objectStore('orders');
+        store.delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = e => reject(e);
+    });
+}
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let orders = [];
+let selectedId = null;
+let nameplatePhotos = [];
+let partPhotos = [];
+let nextId = 1;
+
+function todayISO() { return new Date().toISOString().split('T')[0]; }
+function todayDisplay() {
+    const d = new Date();
+    return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+}
+function isoToDisplay(iso) {
+    if (!iso) return '';
+    const [y,m,d] = iso.split('-');
+    return `${m}/${d}/${y}`;
+}
+function displayToIso(disp) {
+    if (!disp) return '';
+    const parts = disp.split('/');
+    if (parts.length === 3) return `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+    return disp;
+}
+
+// ══════════════════════════════════════
+// TABS (mobile)
+// ══════════════════════════════════════
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.getElementById('listPanel').style.display = tab === 'list' ? '' : 'none';
+    document.getElementById('formPanel').style.display = tab === 'form' ? '' : 'none';
+}
+
+// ══════════════════════════════════════
+// RENDER LIST
+// ══════════════════════════════════════
+function renderList() {
+    const container = document.getElementById('orderList');
+    const search = document.getElementById('searchInput').value.toLowerCase().trim();
+    const statusFilter = document.getElementById('statusFilter').value;
+
+    const sorted = [...orders].sort((a, b) => {
+        const poCmp = (a.po_number || '').localeCompare(b.po_number || '');
+        return poCmp !== 0 ? poCmp : (a.order_id - b.order_id);
+    });
+
+    // Filter
+    const filtered = sorted.filter(o => {
+        if (statusFilter !== 'All' && o.status !== statusFilter) return false;
+        if (search) {
+            const s = [o.po_number, o.mechanic, o.part_number, o.description, o.notes].join(' ').toLowerCase();
+            if (!s.includes(search)) return false;
+        }
+        return true;
+    });
+
+    if (!filtered.length) {
+        container.innerHTML = '<div class="empty-state"><div style="font-size:28px;opacity:0.3">◆</div><div>No orders found</div></div>';
+        return;
+    }
+
+    // Track PO grouping
+    const poSeen = {};
+    const poCounts = {};
+    filtered.forEach(o => { poCounts[o.po_number] = (poCounts[o.po_number] || 0) + 1; });
+
+    let html = '';
+    for (const o of filtered) {
+        const isFirst = !poSeen[o.po_number];
+        const isMulti = poCounts[o.po_number] > 1;
+        poSeen[o.po_number] = true;
+
+        const shade = isMulti && !isFirst ? ' group-shade' : '';
+        const firstPhoto = (o.part_photos && o.part_photos[0]) || (o.nameplate_photos && o.nameplate_photos[0]);
+        const thumbHtml = firstPhoto
+            ? `<img class="thumb" src="${firstPhoto.data}" alt="">`
+            : `<div class="thumb-empty">◆</div>`;
+
+        const showPO = isFirst || !isMulti;
+
+        html += `<div class="order-card${shade}" onclick="selectOrder(${o.order_id})">
+            ${thumbHtml}
+            <div class="info">
+                <div class="top-line">
+                    ${showPO ? `<span class="po">PO ${o.po_number}</span><span class="mechanic">${o.mechanic || ''}</span>` : `<span class="mechanic" style="color:var(--text-muted);font-size:11px">↳ same PO</span>`}
+                </div>
+                <div class="part-line">
+                    <span class="part-num">${o.part_number || ''}</span>
+                    <span class="desc">${o.description || ''}</span>
+                </div>
+                <div class="bottom-line">
+                    <span class="badge ${(o.status||'ordered').toLowerCase()}">${o.status || 'Ordered'}</span>
+                    <span>Qty: ${o.qty || 1}</span>
+                    ${o.notes ? `<span>• ${o.notes}</span>` : ''}
+                    ${o.date_ordered ? `<span>• ${o.date_ordered}</span>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }
+    container.innerHTML = html;
+}
+
+// ══════════════════════════════════════
+// FORM
+// ══════════════════════════════════════
+function selectOrder(id) {
+    selectedId = id;
+    const o = orders.find(x => x.order_id === id);
+    if (!o) return;
+
+    document.getElementById('fPO').value = o.po_number || '';
+    document.getElementById('fMechanic').value = o.mechanic || '';
+    document.getElementById('fPartNum').value = o.part_number || '';
+    document.getElementById('fDesc').value = o.description || '';
+    document.getElementById('fQty').value = o.qty || 1;
+    document.getElementById('fDateOrdered').value = displayToIso(o.date_ordered) || '';
+    document.getElementById('fDateReceived').value = displayToIso(o.date_received) || '';
+    document.getElementById('fNotes').value = o.notes || '';
+
+    if (o.status === 'Received') document.getElementById('sReceived').checked = true;
+    else document.getElementById('sOrdered').checked = true;
+
+    nameplatePhotos = (o.nameplate_photos || []).slice();
+    partPhotos = (o.part_photos || []).slice();
+    renderPhotos();
+
+    document.getElementById('formTitle').textContent = `Edit PO ${o.po_number}`;
+    document.getElementById('btnUpdate').style.display = '';
+    document.getElementById('btnDelete').style.display = '';
+
+    // On mobile, switch to form tab
+    if (window.innerWidth < 768) switchTab('form');
+    renderList();
+}
+
+function getFormData() {
+    return {
+        po_number: document.getElementById('fPO').value.trim(),
+        mechanic: document.getElementById('fMechanic').value.trim(),
+        part_number: document.getElementById('fPartNum').value.trim(),
+        description: document.getElementById('fDesc').value.trim(),
+        qty: document.getElementById('fQty').value.trim() || '1',
+        status: document.querySelector('input[name="status"]:checked').value,
+        date_ordered: isoToDisplay(document.getElementById('fDateOrdered').value),
+        date_received: isoToDisplay(document.getElementById('fDateReceived').value),
+        notes: document.getElementById('fNotes').value.trim(),
+    };
+}
+
+function validate(data) {
+    if (!data.po_number) { alert('PO # is required.'); return false; }
+    if (!data.part_number) { alert('Part # is required.'); return false; }
+    if (!data.mechanic) { alert('Mechanic is required.'); return false; }
+    return true;
+}
+
+async function saveOrder() {
+    const data = getFormData();
+    if (!validate(data)) return;
+    data.order_id = nextId++;
+    data.nameplate_photos = nameplatePhotos.slice();
+    data.part_photos = partPhotos.slice();
+    orders.push(data);
+    await dbPut(data);
+    updateMechList();
+    clearForm();
+    renderList();
+}
+
+async function addPartToPO() {
+    const po = document.getElementById('fPO').value.trim();
+    if (!po) { alert('Enter a PO # first.'); return; }
+    const partNum = document.getElementById('fPartNum').value.trim();
+    if (!partNum) { alert('Enter a Part # for the new part.'); return; }
+    const data = getFormData();
+    if (!data.mechanic) { alert('Mechanic is required.'); return; }
+
+    data.order_id = nextId++;
+    data.nameplate_photos = nameplatePhotos.slice();
+    data.part_photos = partPhotos.slice();
+    orders.push(data);
+    await dbPut(data);
+    updateMechList();
+
+    // Clear part-specific fields only
+    document.getElementById('fPartNum').value = '';
+    document.getElementById('fDesc').value = '';
+    document.getElementById('fQty').value = '1';
+    nameplatePhotos = [];
+    partPhotos = [];
+    renderPhotos();
+    selectedId = null;
+    renderList();
+    alert(`Part added to PO ${po}.`);
+}
+
+async function updateOrder() {
+    if (!selectedId) { alert('Select an order first.'); return; }
+    const data = getFormData();
+    if (!validate(data)) return;
+    data.order_id = selectedId;
+    data.nameplate_photos = nameplatePhotos.slice();
+    data.part_photos = partPhotos.slice();
+    const idx = orders.findIndex(o => o.order_id === selectedId);
+    if (idx >= 0) orders[idx] = data;
+    await dbPut(data);
+    updateMechList();
+    renderList();
+    alert('Updated.');
+}
+
+async function markReceived() {
+    if (!selectedId) { alert('Select an order first.'); return; }
+    const o = orders.find(x => x.order_id === selectedId);
+    if (!o) return;
+    o.status = 'Received';
+    o.date_received = todayDisplay();
+    document.getElementById('sReceived').checked = true;
+    document.getElementById('fDateReceived').value = todayISO();
+    await dbPut(o);
+    renderList();
+}
+
+async function deleteOrder() {
+    if (!selectedId) return;
+    if (!confirm('Delete this part?')) return;
+    orders = orders.filter(o => o.order_id !== selectedId);
+    await dbDelete(selectedId);
+    clearForm();
+    renderList();
+}
+
+function clearForm() {
+    selectedId = null;
+    document.getElementById('fPO').value = '';
+    document.getElementById('fMechanic').value = '';
+    document.getElementById('fPartNum').value = '';
+    document.getElementById('fDesc').value = '';
+    document.getElementById('fQty').value = '1';
+    document.getElementById('sOrdered').checked = true;
+    document.getElementById('fDateOrdered').value = todayISO();
+    document.getElementById('fDateReceived').value = '';
+    document.getElementById('fNotes').value = '';
+    nameplatePhotos = [];
+    partPhotos = [];
+    renderPhotos();
+    document.getElementById('formTitle').textContent = 'New Order';
+    document.getElementById('btnUpdate').style.display = 'none';
+    document.getElementById('btnDelete').style.display = 'none';
+    renderList();
+}
+
+// ══════════════════════════════════════
+// PHOTOS
+// ══════════════════════════════════════
+function addPhoto(type) {
+    const input = type === 'nameplate' ? document.getElementById('npInput') : document.getElementById('ppInput');
+    input.onchange = (e) => handleFiles(e, type);
+    input.click();
+}
+
+function handleFiles(e, type) {
+    const files = e.target.files;
+    const list = type === 'nameplate' ? nameplatePhotos : partPhotos;
+    for (const file of files) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            // Resize for storage efficiency
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const maxDim = 1200;
+                let w = img.width, h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    if (w > h) { h = h * maxDim / w; w = maxDim; }
+                    else { w = w * maxDim / h; h = maxDim; }
+                }
+                canvas.width = w;
+                canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                const data = canvas.toDataURL('image/jpeg', 0.7);
+                list.push({ name: file.name, data });
+                renderPhotos();
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+}
+
+function renderPhotos() {
+    renderPhotoList('npPhotos', nameplatePhotos, 'nameplate');
+    renderPhotoList('ppPhotos', partPhotos, 'part');
+}
+
+function renderPhotoList(containerId, list, type) {
+    const c = document.getElementById(containerId);
+    c.innerHTML = '';
+    list.forEach((p, i) => {
+        const chip = document.createElement('div');
+        chip.className = 'photo-chip';
+        chip.innerHTML = `<img src="${p.data}" onclick="viewPhoto(${type === 'nameplate' ? 'nameplatePhotos' : 'partPhotos'},${i})">
+            <span class="name">${p.name}</span>
+            <span class="remove" onclick="removePhoto('${type}',${i})">×</span>`;
+        c.appendChild(chip);
+    });
+}
+
+function viewPhoto(list, idx) {
+    document.getElementById('modalImg').src = list[idx].data;
+    document.getElementById('photoModal').classList.add('active');
+}
+
+function removePhoto(type, idx) {
+    (type === 'nameplate' ? nameplatePhotos : partPhotos).splice(idx, 1);
+    renderPhotos();
+}
+
+// ══════════════════════════════════════
+// MECHANIC AUTOCOMPLETE
+// ══════════════════════════════════════
+function updateMechList() {
+    const names = [...new Set(orders.map(o => o.mechanic).filter(Boolean))].sort();
+    document.getElementById('mechList').innerHTML = names.map(n => `<option value="${n}">`).join('');
+}
+
+// ══════════════════════════════════════
+// CSV EXPORT / IMPORT
+// ══════════════════════════════════════
+function exportCSV() {
+    const fields = ['po_number','mechanic','part_number','description','qty','status','date_ordered','date_received','notes'];
+    let csv = fields.join(',') + '\n';
+    for (const o of orders) {
+        csv += fields.map(f => `"${(o[f]||'').replace(/"/g,'""')}"`).join(',') + '\n';
+    }
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'parts_orders.csv';
+    a.click();
+}
+
+document.getElementById('csvImport').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.split('\n').filter(l => l.trim());
+    if (lines.length < 2) { alert('CSV appears empty.'); return; }
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
+    if (!confirm(`Import ${lines.length-1} orders? This adds to existing data.`)) return;
+
+    for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        const order = {};
+        headers.forEach((h, idx) => { order[h] = values[idx] || ''; });
+        order.order_id = nextId++;
+        order.nameplate_photos = [];
+        order.part_photos = [];
+        orders.push(order);
+        await dbPut(order);
+    }
+    updateMechList();
+    renderList();
+    alert(`Imported ${lines.length-1} orders.`);
+    e.target.value = '';
+});
+
+function parseCSVLine(line) {
+    const result = [];
+    let current = '', inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+            if (ch === '"' && line[i+1] === '"') { current += '"'; i++; }
+            else if (ch === '"') inQuotes = false;
+            else current += ch;
+        } else {
+            if (ch === '"') inQuotes = true;
+            else if (ch === ',') { result.push(current.trim()); current = ''; }
+            else current += ch;
+        }
+    }
+    result.push(current.trim());
+    return result;
+}
+
+// ══════════════════════════════════════
+// RESPONSIVE LAYOUT
+// ══════════════════════════════════════
+function handleResize() {
+    const wide = window.innerWidth >= 768;
+    document.getElementById('mobileTabs').style.display = wide ? 'none' : '';
+    document.getElementById('listPanel').style.display = '';
+    document.getElementById('formPanel').style.display = wide ? '' : (document.querySelector('.tab.active')?.dataset.tab === 'form' ? '' : 'none');
+}
+window.addEventListener('resize', handleResize);
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+async function init() {
+    await openDB();
+    orders = await dbGetAll();
+    nextId = orders.length ? Math.max(...orders.map(o => o.order_id || 0)) + 1 : 1;
+    document.getElementById('fDateOrdered').value = todayISO();
+    document.getElementById('searchInput').addEventListener('input', renderList);
+    document.getElementById('statusFilter').addEventListener('change', renderList);
+    updateMechList();
+    handleResize();
+    renderList();
+}
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+init();
+</script>
+</body>
+</html>
